@@ -1,6 +1,6 @@
 import { cookies, headers } from "next/headers";
 
-import type { MeResponse } from "@/feature/auth/models/auth";
+import type { MeResponse } from "@/shared/models/auth/auth";
 
 /**
  * Server-side user load via BFF GET /api/auth/me (forwards request cookies).

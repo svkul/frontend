@@ -4,12 +4,38 @@ type ClientFetchOptions = {
   retryOn401?: boolean;
 };
 
+type UnauthorizedHandler = () => void | Promise<void>;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+let isHandlingUnauthorized = false;
+
 export class ApiError extends Error {
   status: number;
 
   constructor(status: number, message?: string) {
     super(message ?? `BFF request failed with status ${status}`);
     this.status = status;
+  }
+}
+
+export function registerUnauthorizedHandler(handler: UnauthorizedHandler) {
+  unauthorizedHandler = handler;
+}
+
+export function clearUnauthorizedHandler() {
+  unauthorizedHandler = null;
+}
+
+async function runUnauthorizedHandler() {
+  if (!unauthorizedHandler || isHandlingUnauthorized) {
+    return;
+  }
+
+  isHandlingUnauthorized = true;
+  try {
+    await unauthorizedHandler();
+  } finally {
+    isHandlingUnauthorized = false;
   }
 }
 
@@ -50,6 +76,10 @@ export async function clientFetch<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      await runUnauthorizedHandler();
+    }
+
     throw new ApiError(response.status);
   }
 

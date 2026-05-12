@@ -19,3 +19,9 @@ export async function logoutClient(): Promise<{ ok: true }> {
     { retryOn401: false },
   );
 }
+
+export async function protectedClient(): Promise<{ message: string }> {
+  return clientFetch<{ message: string }>("/api/auth/protected", {
+    method: "POST",
+  });
+}
