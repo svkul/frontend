@@ -1,10 +1,4 @@
-import { clientFetch } from "@/lib/api/client/utils/bff";
-
-import type { MeResponse } from "@/lib/api/types/auth";
-
-export async function meClient(): Promise<MeResponse> {
-  return clientFetch<MeResponse>("/api/auth/me");
-}
+import { clientFetch } from "@/utils/api/client/bff";
 
 export async function refreshClient(): Promise<{ ok: true }> {
   return clientFetch<{ ok: true }>(

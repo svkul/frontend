@@ -1,8 +1,8 @@
 "use client";
 
-import { GoogleLogin } from "@/components/auth/google/Google";
-import { LogOut } from "@/components/auth/log-out/LogOut";
-import type { MeResponse } from "@/lib/api/types/auth";
+import { GoogleLogin } from "@/feature/auth/ui/google/Google";
+import { LogOut } from "@/feature/auth/ui/log-out/LogOut";
+import type { MeResponse } from "@/feature/auth/models/auth";
 
 type Props = {
   me: MeResponse | null;

@@ -1,5 +1,5 @@
 import { AuthHomeClient } from "@/components/auth/AuthHomeClient";
-import { fetchMe } from "@/lib/api/server/me";
+import { fetchMe } from "@/feature/auth/api/server/me";
 
 export default async function Home() {
   const me = await fetchMe();
