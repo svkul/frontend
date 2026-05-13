@@ -8,6 +8,7 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     router.replace("/");
+    router.refresh();
   }, [router]);
 
   return <p className="p-6">Redirecting...</p>;

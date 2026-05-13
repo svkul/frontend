@@ -7,7 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   clearUnauthorizedHandler,
   registerUnauthorizedHandler,
-} from "@/utils/api/client/bff";
+} from "@/shared/api/client/bff";
 
 type Props = {
   children: ReactNode;

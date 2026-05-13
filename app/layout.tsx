@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
 import { QueryProvider } from "@/shared/providers/QueryProvider";
+import { Header } from "@/shared/ui/header/Header";
+import { cn } from "@/shared/lib/utils";
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,14 +28,21 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
     >
-      <body className="min-h-full flex flex-col">
-        <QueryProvider>{children}</QueryProvider>
-      </body>
+      <QueryProvider>
+        <body className="min-h-full flex flex-col">
+          <Header />
+
+          <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-1 sm:items-start">
+            {children}
+          </main>
+        </body>
+      </QueryProvider>
     </html>
   );
 }

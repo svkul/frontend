@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 
 import { protectedClient } from "../../api/client/auth.client";
-import { ApiError } from "@/utils/api/client/bff";
+import { ApiError } from "@/shared/api/client/bff";
 
 export const IsProtected = () => {
   const { mutate, reset, isPending, isError } = useMutation({
