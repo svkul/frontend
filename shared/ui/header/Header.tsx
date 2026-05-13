@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { fetchMe } from "@/pages/home/api/server/me";
+import { fetchMe } from "@/storinki/home/api/server/me";
 
 import { GoogleLogin } from "@/feature/auth/ui/google/Google";
 import { LogOut } from "@/feature/auth/ui/log-out/LogOut";
