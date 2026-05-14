@@ -1,27 +1,23 @@
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 
 import type { MeResponse } from "@/shared/models/auth/auth";
+import { getBackendBaseUrl } from "@/shared/lib/backend-url";
 
 /**
- * Server-side user load via BFF GET /api/auth/me (forwards request cookies).
+ * Server-side user load: forwards browser cookies to GET /auth/me on the API host.
  */
 export async function fetchMe(): Promise<MeResponse | null> {
-  const headerStore = await headers();
-  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  if (!host) {
-    return null;
-  }
-
-  const protocol = headerStore.get("x-forwarded-proto") ?? "http";
-  const base = `${protocol}://${host}`;
-
   const cookieStore = await cookies();
   const cookieHeader = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  const response = await fetch(`${base}/api/auth/me`, {
+  if (!cookieHeader) {
+    return null;
+  }
+
+  const response = await fetch(`${getBackendBaseUrl()}/auth/me`, {
     headers: { cookie: cookieHeader },
     cache: "no-store",
   });

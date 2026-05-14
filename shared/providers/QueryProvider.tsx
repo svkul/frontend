@@ -4,10 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { getBackendBaseUrl } from "@/shared/lib/backend-url";
 import {
   clearUnauthorizedHandler,
   registerUnauthorizedHandler,
-} from "@/shared/api/client/bff";
+} from "@/shared/api/client/api-client";
 
 type Props = {
   children: ReactNode;
@@ -29,7 +30,7 @@ export const QueryProvider = ({ children }: Props) => {
 
   useEffect(() => {
     registerUnauthorizedHandler(async () => {
-      await fetch("/api/auth/logout", {
+      await fetch(`${getBackendBaseUrl()}/auth/logout`, {
         method: "POST",
         credentials: "include",
         headers: {

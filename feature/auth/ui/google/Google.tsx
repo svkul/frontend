@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 
+import { getBackendBaseUrl } from "@/shared/lib/backend-url";
 import { Button } from "@/shared/ui/shadcn/button";
 
 export const GoogleLogin = () => {
   const handleSignInWithGoogle = () => {
-    window.location.href = "/api/auth/google";
+    window.location.href = `${getBackendBaseUrl()}/auth/google`;
   };
 
   return (

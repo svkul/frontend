@@ -1,4 +1,6 @@
-type BffClientFetchOptions = Omit<RequestInit, "credentials">;
+import { getBackendBaseUrl } from "@/shared/lib/backend-url";
+
+type ClientFetchInit = Omit<RequestInit, "credentials">;
 
 type ClientFetchOptions = {
   retryOn401?: boolean;
@@ -13,7 +15,7 @@ export class ApiError extends Error {
   status: number;
 
   constructor(status: number, message?: string) {
-    super(message ?? `BFF request failed with status ${status}`);
+    super(message ?? `API request failed with status ${status}`);
     this.status = status;
   }
 }
@@ -39,26 +41,42 @@ async function runUnauthorizedHandler() {
   }
 }
 
+function toAbsoluteApiUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  const base = getBackendBaseUrl();
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${suffix}`;
+}
+
 export async function clientFetch<T>(
   path: string,
-  init?: BffClientFetchOptions,
+  init?: ClientFetchInit,
   options?: ClientFetchOptions,
 ): Promise<T> {
   const retryOn401 = options?.retryOn401 ?? true;
 
-  const baseHeaders: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(init?.headers ?? {}),
-  };
+  const url = toAbsoluteApiUrl(path);
 
-  let response = await fetch(path, {
-    ...init,
-    credentials: "include",
-    headers: baseHeaders,
-  });
+  const headers: Record<string, string> = {
+    ...((init?.headers as Record<string, string> | undefined) ?? {}),
+  };
+  if (init?.body !== undefined && headers["Content-Type"] === undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const doFetch = () =>
+    fetch(url, {
+      ...init,
+      credentials: "include",
+      headers,
+    });
+
+  let response = await doFetch();
 
   if (response.status === 401 && retryOn401) {
-    const refreshResponse = await fetch("/api/auth/refresh", {
+    const refreshResponse = await fetch(`${getBackendBaseUrl()}/auth/refresh`, {
       method: "POST",
       credentials: "include",
       headers: {
@@ -67,11 +85,7 @@ export async function clientFetch<T>(
     });
 
     if (refreshResponse.ok) {
-      response = await fetch(path, {
-        ...init,
-        credentials: "include",
-        headers: baseHeaders,
-      });
+      response = await doFetch();
     }
   }
 
