@@ -1,6 +1,8 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/feature/auth/ui/login-form/LoginForm";
+import { CSP_NONCE_HEADER } from "@/shared/lib/csp-nonce";
 import { getServerUser } from "@/shared/api/server/get-server-user";
 
 interface PageProps {
@@ -35,6 +37,8 @@ export default async function LoginPage({ searchParams }: PageProps) {
   }
 
   const error = pickFirst(params.error);
+  const hdrs = await headers();
+  const cspScriptNonce = hdrs.get(CSP_NONCE_HEADER) ?? undefined;
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 rounded-xl border p-6 shadow-sm">
@@ -45,7 +49,11 @@ export default async function LoginPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <LoginForm returnTo={returnTo} initialError={error} />
+      <LoginForm
+        returnTo={returnTo}
+        initialError={error}
+        cspScriptNonce={cspScriptNonce}
+      />
     </div>
   );
 }

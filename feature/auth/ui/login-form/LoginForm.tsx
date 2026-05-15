@@ -37,9 +37,15 @@ declare global {
 interface Props {
   returnTo?: string | null;
   initialError?: string | null;
+  /** Per-request CSP nonce from middleware (production); forwarded to next/script for Turnstile. */
+  cspScriptNonce?: string;
 }
 
-export const LoginForm = ({ returnTo = null, initialError = null }: Props) => {
+export const LoginForm = ({
+  returnTo = null,
+  initialError = null,
+  cspScriptNonce,
+}: Props) => {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -119,6 +125,7 @@ export const LoginForm = ({ returnTo = null, initialError = null }: Props) => {
       <Script
         src={TURNSTILE_SCRIPT_URL}
         strategy="afterInteractive"
+        nonce={cspScriptNonce}
         onLoad={() => setScriptReady(true)}
         onReady={() => setScriptReady(true)}
       />
