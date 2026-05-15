@@ -15,12 +15,27 @@ function createNonce(): string {
   return btoa(binary);
 }
 
-function buildContentSecurityPolicy(nonce: string, isDev: boolean): string {
+function isLoginPath(pathname: string): boolean {
+  return pathname === "/login" || pathname.startsWith("/login/");
+}
+
+function buildContentSecurityPolicy(
+  nonce: string,
+  isDev: boolean,
+  pathname: string,
+): string {
+  const login = isLoginPath(pathname);
+
   // Dev: Next.js HMR / React refresh needs eval and inline scripts.
-  // Prod: per-request nonce + strict-dynamic for scripts allowed by the trusted loader.
-  const scriptSrc = isDev
-    ? `'self' 'unsafe-eval' 'unsafe-inline' ${TURNSTILE}`
-    : `'self' 'nonce-${nonce}' 'strict-dynamic' ${TURNSTILE}`;
+  // Prod (general): nonce + strict-dynamic for our own scripts.
+  // Prod (/login): Cloudflare Turnstile nests srcdoc/iframes that inherit this document's
+  // CSP; nonce-only + strict-dynamic blocks their inline bootstrap (browser console:
+  // "Executing inline script violates ... script-src 'nonce-...'"). A relaxed script
+  // policy on /login only keeps strict CSP elsewhere.
+  const scriptSrc =
+    isDev || login
+      ? `'self' 'unsafe-eval' 'unsafe-inline' ${TURNSTILE}`
+      : `'self' 'nonce-${nonce}' 'strict-dynamic' ${TURNSTILE}`;
 
   // Next.js injects small inline style blocks (fonts, etc.); `'unsafe-inline'` for styles is a common compromise.
   const styleSrc = `'self' 'unsafe-inline'`;
@@ -33,6 +48,8 @@ function buildContentSecurityPolicy(nonce: string, isDev: boolean): string {
     "font-src 'self' data:",
     `connect-src 'self' ${TURNSTILE}`,
     `frame-src ${TURNSTILE}`,
+    // Turnstile challenge workers occasionally use blob workers.
+    "worker-src 'self' blob:",
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "object-src 'none'",
@@ -44,6 +61,7 @@ function buildContentSecurityPolicy(nonce: string, isDev: boolean): string {
 export function middleware(request: NextRequest) {
   const isDev = process.env.NODE_ENV === "development";
   const nonce = createNonce();
+  const pathname = request.nextUrl.pathname;
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(CSP_NONCE_HEADER, nonce);
@@ -54,7 +72,7 @@ export function middleware(request: NextRequest) {
 
   response.headers.set(
     "Content-Security-Policy",
-    buildContentSecurityPolicy(nonce, isDev),
+    buildContentSecurityPolicy(nonce, isDev, pathname),
   );
 
   return response;
