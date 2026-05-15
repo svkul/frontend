@@ -4,6 +4,10 @@ import { NextResponse } from "next/server";
 import { CSP_NONCE_HEADER } from "@/shared/lib/csp-nonce";
 
 const TURNSTILE = "https://challenges.cloudflare.com";
+/** Injected by Cloudflare (orange proxy) when Web Analytics / RUM is enabled. */
+const CF_INSIGHTS_SCRIPT = "https://static.cloudflareinsights.com";
+/** Beacon posts from browser RUM. */
+const CF_INSIGHTS_CONNECT = "https://cloudflareinsights.com";
 const GOOGLE_ACCOUNTS = "https://accounts.google.com";
 const GOOGLE_PROFILE_IMG = "https://lh3.googleusercontent.com";
 
@@ -34,8 +38,8 @@ function buildContentSecurityPolicy(
   // policy on /login only keeps strict CSP elsewhere.
   const scriptSrc =
     isDev || login
-      ? `'self' 'unsafe-eval' 'unsafe-inline' ${TURNSTILE}`
-      : `'self' 'nonce-${nonce}' 'strict-dynamic' ${TURNSTILE}`;
+      ? `'self' 'unsafe-eval' 'unsafe-inline' ${TURNSTILE} ${CF_INSIGHTS_SCRIPT}`
+      : `'self' 'nonce-${nonce}' 'strict-dynamic' ${TURNSTILE} ${CF_INSIGHTS_SCRIPT}`;
 
   // Next.js injects small inline style blocks (fonts, etc.); `'unsafe-inline'` for styles is a common compromise.
   const styleSrc = `'self' 'unsafe-inline'`;
@@ -46,7 +50,7 @@ function buildContentSecurityPolicy(
     `style-src ${styleSrc}`,
     `img-src 'self' data: blob: ${GOOGLE_PROFILE_IMG}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${TURNSTILE}`,
+    `connect-src 'self' ${TURNSTILE} ${CF_INSIGHTS_CONNECT}`,
     `frame-src ${TURNSTILE}`,
     // Turnstile challenge workers occasionally use blob workers.
     "worker-src 'self' blob:",
