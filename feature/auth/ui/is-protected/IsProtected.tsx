@@ -1,31 +1,24 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
-import { protectedClient } from "../../api/client/auth.client";
-import { ApiError } from "@/shared/api/client/api-client";
+import { meClient } from "../../api/client/auth.client";
 
 export const IsProtected = () => {
-  const { mutate, reset, isPending, isError } = useMutation({
-    mutationFn: protectedClient,
-    onSuccess: () => {
-      console.log("success");
-    },
-    onError: (error) => {
-      if (error instanceof ApiError && error.status === 401) {
-        reset();
-      }
-    },
+  const { refetch, isFetching, isError, data } = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: meClient,
+    enabled: false,
   });
 
   return (
     <button
       className="flex items-center gap-2"
       type="button"
-      onClick={() => mutate()}
+      onClick={() => void refetch()}
     >
-      {isPending ? "Loading..." : "Is protected"}
-      {isError ? "Error" : null}
+      {isFetching ? "Loading..." : data ? `Hi, ${data.user.name ?? data.user.email}` : "Check auth"}
+      {isError ? " — not authenticated" : null}
     </button>
   );
 };

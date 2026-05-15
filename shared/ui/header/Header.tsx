@@ -1,19 +1,18 @@
 import Image from "next/image";
+import Link from "next/link";
 
-import { fetchMe } from "@/storinki/home/api/server/me";
-
-import { GoogleLogin } from "@/feature/auth/ui/google/Google";
 import { LogOut } from "@/feature/auth/ui/log-out/LogOut";
-
+import { getServerUser } from "@/shared/api/server/get-server-user";
+import { Button } from "@/shared/ui/shadcn/button";
 
 export const Header = async () => {
-  const me = await fetchMe();
+  const me = await getServerUser();
 
   return (
     <header className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Image src="/next.svg" alt="Logo" width={128} height={26} />
-      </div>
+      <Link href="/" className="flex items-center gap-2">
+        <Image src="/next.svg" alt="Logo" width={128} height={26} loading="eager" />
+      </Link>
 
       {me ? (
         <div className="flex items-center gap-2">
@@ -21,7 +20,9 @@ export const Header = async () => {
           <LogOut />
         </div>
       ) : (
-        <GoogleLogin />
+        <Button asChild>
+          <Link href="/login">Sign in</Link>
+        </Button>
       )}
     </header>
   );

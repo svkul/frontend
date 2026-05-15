@@ -1,101 +1,121 @@
-import { getBackendBaseUrl } from "@/shared/lib/backend-url";
-
 type ClientFetchInit = Omit<RequestInit, "credentials">;
 
 type ClientFetchOptions = {
+  /** Try refresh-rotation once on 401, then retry the original request. */
   retryOn401?: boolean;
 };
 
-type UnauthorizedHandler = () => void | Promise<void>;
-
-let unauthorizedHandler: UnauthorizedHandler | null = null;
-let isHandlingUnauthorized = false;
-
 export class ApiError extends Error {
-  status: number;
+  readonly status: number;
+  readonly body?: unknown;
 
-  constructor(status: number, message?: string) {
+  constructor(status: number, message?: string, body?: unknown) {
     super(message ?? `API request failed with status ${status}`);
     this.status = status;
+    this.body = body;
   }
 }
 
-export function registerUnauthorizedHandler(handler: UnauthorizedHandler) {
-  unauthorizedHandler = handler;
-}
+const CSRF_COOKIE = "__Secure-csrf";
+const CSRF_HEADER = "X-CSRF-Token";
+const REFRESH_PATH = "/api/auth/refresh";
+const STATE_CHANGING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-export function clearUnauthorizedHandler() {
-  unauthorizedHandler = null;
-}
-
-async function runUnauthorizedHandler() {
-  if (!unauthorizedHandler || isHandlingUnauthorized) {
-    return;
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const target = `${name}=`;
+  for (const part of document.cookie.split(";")) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(target)) return trimmed.slice(target.length);
   }
-
-  isHandlingUnauthorized = true;
-  try {
-    await unauthorizedHandler();
-  } finally {
-    isHandlingUnauthorized = false;
-  }
+  return null;
 }
 
-function toAbsoluteApiUrl(path: string): string {
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
-  }
-  const base = getBackendBaseUrl();
-  const suffix = path.startsWith("/") ? path : `/${path}`;
-  return `${base}${suffix}`;
+/**
+ * Coalesce concurrent refresh attempts: a burst of 401s should issue exactly
+ * one /api/auth/refresh call and wait for its result.
+ */
+let pendingRefresh: Promise<boolean> | null = null;
+async function refreshOnce(): Promise<boolean> {
+  if (pendingRefresh) return pendingRefresh;
+  pendingRefresh = (async () => {
+    try {
+      const res = await fetch(REFRESH_PATH, {
+        method: "POST",
+        credentials: "include",
+        headers: csrfHeaders("POST"),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      pendingRefresh = null;
+    }
+  })();
+  return pendingRefresh;
 }
 
+function csrfHeaders(method: string): HeadersInit {
+  if (!STATE_CHANGING.has(method.toUpperCase())) return {};
+  const token = readCookie(CSRF_COOKIE);
+  return token ? { [CSRF_HEADER]: token } : {};
+}
+
+/**
+ * Browser-side fetch for our own `/api/*` BFF endpoints. Adds:
+ *  - `credentials: include` (cookies travel on same-origin too — explicit is safer)
+ *  - X-CSRF-Token header on state-changing methods (double-submit pattern)
+ *  - Optional one-shot retry on 401 via /api/auth/refresh
+ *
+ * Path must be a same-origin relative URL (e.g. `/api/auth/logout`). Absolute
+ * URLs to the backend are intentionally NOT supported here — those should
+ * only ever be reachable through Route Handlers.
+ */
 export async function clientFetch<T>(
   path: string,
   init?: ClientFetchInit,
   options?: ClientFetchOptions,
 ): Promise<T> {
-  const retryOn401 = options?.retryOn401 ?? true;
-
-  const url = toAbsoluteApiUrl(path);
-
-  const headers: Record<string, string> = {
-    ...((init?.headers as Record<string, string> | undefined) ?? {}),
-  };
-  if (init?.body !== undefined && headers["Content-Type"] === undefined) {
-    headers["Content-Type"] = "application/json";
+  if (/^https?:\/\//i.test(path)) {
+    throw new Error(
+      `clientFetch only accepts relative URLs, got "${path}". Use BFF route handlers under /api/*.`,
+    );
   }
 
+  const retryOn401 = options?.retryOn401 ?? true;
+  const method = (init?.method ?? "GET").toUpperCase();
+
   const doFetch = () =>
-    fetch(url, {
+    fetch(path, {
       ...init,
+      method,
       credentials: "include",
-      headers,
+      headers: {
+        ...csrfHeaders(method),
+        ...(init?.headers as Record<string, string> | undefined),
+      },
     });
 
   let response = await doFetch();
 
-  if (response.status === 401 && retryOn401) {
-    const refreshResponse = await fetch(`${getBackendBaseUrl()}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (refreshResponse.ok) {
+  if (response.status === 401 && retryOn401 && path !== REFRESH_PATH) {
+    const refreshed = await refreshOnce();
+    if (refreshed) {
       response = await doFetch();
     }
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
-      await runUnauthorizedHandler();
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      body = undefined;
     }
-
-    throw new ApiError(response.status);
+    throw new ApiError(response.status, undefined, body);
   }
 
+  // 204 No Content
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
