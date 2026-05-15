@@ -47,6 +47,8 @@ const SAFE_FORWARD_REQUEST_HEADERS = [
   "x-forwarded-for",
   "x-forwarded-proto",
   "x-request-id",
+  /** Double-submit CSRF: browser sends token; Nest CsrfGuard compares to cookie. */
+  "x-csrf-token",
 ];
 
 export interface ProxyOptions {
